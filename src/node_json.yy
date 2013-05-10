@@ -2,7 +2,7 @@
 %%
 
 root
-    : commands EOF { return $1; }
+    : commands { return $1; }
     ;
 
 commands
@@ -11,7 +11,7 @@ commands
     ;
 
 command
-    : ID ':' VALUE terminator  { $$ = [$1, $3] }
+    : ID VALUE terminator  { $$ = [$1, $2] }
     ;
 
 terminator

@@ -20,10 +20,9 @@ exports.Lexer = class Lexer
     while @chunk = code[i..]
       consumed = \
             @identifierToken() or
-            @colonToken() or
-            @valueToken()
-            @whitespaceToken()
-
+            @valueToken() or
+            @whitespaceToken() or
+            @newlineToken()
       [@chunkLine, @chunkColumn] = @getLineAndColumnFromChunk consumed
       i += consumed
 
@@ -35,22 +34,14 @@ exports.Lexer = class Lexer
   identifierToken: ->
     return 0 unless match = IDENTIFIER.exec @chunk
     identifier = match[0]
-    @token 'ID', identifier, 0, identifier.length
-    console.log identifier.length
+    @token 'ID', match[1], 0, identifier.length
 
     identifier.length
-
-  colonToken: ->
-    return 0 unless match = COLON.exec @chunk
-    colon = match[0]
-    @token ':', colon, 0, colon.length
-    console.log colon.length
-    colon.length
 
   valueToken: ->
     return 0 unless match = VALUE.exec @chunk
     value = match[0]
-    @tokens.push 'VALUE', value, 0, value.length
+    @token 'VALUE', value, 0, value.length
 
     value.length
 
@@ -60,6 +51,14 @@ exports.Lexer = class Lexer
     prev = last @tokens
     prev[if match then 'spaced' else 'newLine'] = true if prev
     if match then match[0].length else 0
+
+  newlineToken: (offset) ->
+    return 0 unless @chunk.lastIndexOf '\n' >= 0
+    @token 'TERMINATOR', '\n', offset, 0 unless @tag() is 'TERMINATOR'
+    1
+
+  tag: ->
+    (last @tokens)[0]
 
   makeToken: (tag, value, offsetInChunk = 0, length = value.length) ->
     locationData = {}
@@ -128,9 +127,7 @@ exports.Lexer = class Lexer
 WHITESPACE = /^[^\n\S]+/
 BOM = 65279
 
-IDENTIFIER = /^\w+/
-
-COLON = /^:/
+IDENTIFIER = /^(\w+):/
 
 VALUE = /^[a-zA-Z0-9_$]+/
 

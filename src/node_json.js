@@ -74,26 +74,26 @@
 var node_json = (function(){
 var parser = {trace: function trace() { },
 yy: {},
-symbols_: {"error":2,"root":3,"commands":4,"EOF":5,"command":6,"ID":7,":":8,"VALUE":9,"terminator":10,"TERMINATOR":11,"$accept":0,"$end":1},
-terminals_: {2:"error",5:"EOF",7:"ID",8:":",9:"VALUE",11:"TERMINATOR"},
-productions_: [0,[3,2],[4,1],[4,2],[6,4],[10,0],[10,1]],
+symbols_: {"error":2,"root":3,"commands":4,"command":5,"ID":6,"VALUE":7,"terminator":8,"TERMINATOR":9,"$accept":0,"$end":1},
+terminals_: {2:"error",6:"ID",7:"VALUE",9:"TERMINATOR"},
+productions_: [0,[3,1],[4,1],[4,2],[5,3],[8,0],[8,1]],
 performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate /* action[1] */, $$ /* vstack */, _$ /* lstack */) {
 /* this == yyval */
 
 var $0 = $$.length - 1;
 switch (yystate) {
-case 1: return $$[$0-1]; 
+case 1: return $$[$0]; 
 break;
 case 2: this.$ = [$$[$0]]; 
 break;
 case 3: $$[$0-1].push($$[$0]); this.$ = $$[$0-1]; 
 break;
-case 4: this.$ = [$$[$0-3], $$[$0-1]] 
+case 4: this.$ = [$$[$0-2], $$[$0-1]] 
 break;
 }
 },
-table: [{3:1,4:2,6:3,7:[1,4]},{1:[3]},{5:[1,5],6:6,7:[1,4]},{5:[2,2],7:[2,2]},{8:[1,7]},{1:[2,1]},{5:[2,3],7:[2,3]},{9:[1,8]},{5:[2,5],7:[2,5],10:9,11:[1,10]},{5:[2,4],7:[2,4]},{5:[2,6],7:[2,6]}],
-defaultActions: {5:[2,1]},
+table: [{3:1,4:2,5:3,6:[1,4]},{1:[3]},{1:[2,1],5:5,6:[1,4]},{1:[2,2],6:[2,2]},{7:[1,6]},{1:[2,3],6:[2,3]},{1:[2,5],6:[2,5],8:7,9:[1,8]},{1:[2,4],6:[2,4]},{1:[2,6],6:[2,6]}],
+defaultActions: {},
 parseError: function parseError(str, hash) {
     if (hash.recoverable) {
         this.trace(str);
