@@ -6,12 +6,21 @@ root
     ;
 
 commands
-    : command { $$ = [$1]; }
-    | commands command { $1.push($2); $$ = $1; }
+    : command { $$ = $1; }
+    | commands command { yy.extend($1, $2); $$ = $1; }
     ;
 
 command
-    : ID VALUE terminator  { $$ = [$1, $2] }
+    : pair { $$ = $1 }
+    | block { $$ = $1 }
+    ;
+
+pair
+    : ID VALUE terminator { $$ = {}; $$[$1] = $2 }
+    ;
+
+block
+    : ID INDENT commands OUTDENT terminator { $$ = {}; $$[$1] = $3 }
     ;
 
 terminator

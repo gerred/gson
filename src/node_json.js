@@ -74,9 +74,9 @@
 var node_json = (function(){
 var parser = {trace: function trace() { },
 yy: {},
-symbols_: {"error":2,"root":3,"commands":4,"command":5,"ID":6,"VALUE":7,"terminator":8,"TERMINATOR":9,"$accept":0,"$end":1},
-terminals_: {2:"error",6:"ID",7:"VALUE",9:"TERMINATOR"},
-productions_: [0,[3,1],[4,1],[4,2],[5,3],[8,0],[8,1]],
+symbols_: {"error":2,"root":3,"commands":4,"command":5,"pair":6,"block":7,"ID":8,"VALUE":9,"terminator":10,"INDENT":11,"OUTDENT":12,"TERMINATOR":13,"$accept":0,"$end":1},
+terminals_: {2:"error",8:"ID",9:"VALUE",11:"INDENT",12:"OUTDENT",13:"TERMINATOR"},
+productions_: [0,[3,1],[4,1],[4,2],[5,1],[5,1],[6,3],[7,5],[10,0],[10,1]],
 performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate /* action[1] */, $$ /* vstack */, _$ /* lstack */) {
 /* this == yyval */
 
@@ -84,15 +84,21 @@ var $0 = $$.length - 1;
 switch (yystate) {
 case 1: return $$[$0]; 
 break;
-case 2: this.$ = [$$[$0]]; 
+case 2: this.$ = $$[$0]; 
 break;
-case 3: $$[$0-1].push($$[$0]); this.$ = $$[$0-1]; 
+case 3: yy.extend($$[$0-1], $$[$0]); this.$ = $$[$0-1]; 
 break;
-case 4: this.$ = [$$[$0-2], $$[$0-1]] 
+case 4: this.$ = $$[$0] 
+break;
+case 5: this.$ = $$[$0] 
+break;
+case 6: this.$ = {}; this.$[$$[$0-2]] = $$[$0-1] 
+break;
+case 7: this.$ = {}; this.$[$$[$0-4]] = $$[$0-2] 
 break;
 }
 },
-table: [{3:1,4:2,5:3,6:[1,4]},{1:[3]},{1:[2,1],5:5,6:[1,4]},{1:[2,2],6:[2,2]},{7:[1,6]},{1:[2,3],6:[2,3]},{1:[2,5],6:[2,5],8:7,9:[1,8]},{1:[2,4],6:[2,4]},{1:[2,6],6:[2,6]}],
+table: [{3:1,4:2,5:3,6:4,7:5,8:[1,6]},{1:[3]},{1:[2,1],5:7,6:4,7:5,8:[1,6]},{1:[2,2],8:[2,2],12:[2,2]},{1:[2,4],8:[2,4],12:[2,4]},{1:[2,5],8:[2,5],12:[2,5]},{9:[1,8],11:[1,9]},{1:[2,3],8:[2,3],12:[2,3]},{1:[2,8],8:[2,8],10:10,12:[2,8],13:[1,11]},{4:12,5:3,6:4,7:5,8:[1,6]},{1:[2,6],8:[2,6],12:[2,6]},{1:[2,9],8:[2,9],12:[2,9]},{5:7,6:4,7:5,8:[1,6],12:[1,13]},{1:[2,8],8:[2,8],10:14,12:[2,8],13:[1,11]},{1:[2,7],8:[2,7],12:[2,7]}],
 defaultActions: {},
 parseError: function parseError(str, hash) {
     if (hash.recoverable) {

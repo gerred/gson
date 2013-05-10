@@ -2,6 +2,11 @@
 
 exports.Lexer = class Lexer
   tokenize: (code, opts={}) ->
+    @indent   = 0              # The current indentation level.
+    @indebt   = 0              # The over-indentation at the current level.
+    @outdebt  = 0              # The under-outdentation at the current level.
+    @indents  = []             # The stack of all current indentation levels.
+    @ends     = []             # The stack for pairing up tokens.
     @tokens = []
 
     @chunkLine =
@@ -15,11 +20,9 @@ exports.Lexer = class Lexer
             @identifierToken() or
             @valueToken() or
             @whitespaceToken() or
-            @newlineToken()
+            @lineToken()
       [@chunkLine, @chunkColumn] = @getLineAndColumnFromChunk consumed
       i += consumed
-
-    console.log @tokens
 
   setInput: ->
     @pos = 0
@@ -45,13 +48,90 @@ exports.Lexer = class Lexer
     prev[if match then 'spaced' else 'newLine'] = true if prev
     if match then match[0].length else 0
 
+  lineToken: ->
+    return 0 unless match = MULTI_DENT.exec @chunk
+    indent = match[0]
+    @seenFor = no
+    size = indent.length - 1 - indent.lastIndexOf '\n'
+    noNewlines = @unfinished()
+    if size - @indebt is @indent
+      if noNewlines then @suppressNewlines() else @newlineToken 0
+      return indent.length
+
+    if size > @indent
+      if noNewlines
+        @indebt = size - @indent
+        @suppressNewlines()
+        return indent.length
+      diff = size - @indent + @outdebt
+      @token 'INDENT', diff, indent.length - size, size
+      @indents.push diff
+      @ends.push 'OUTDENT'
+      @outdebt = @indebt = 0
+    else
+      @indebt = 0
+      @outdentToken @indent - size, noNewlines, indent.length
+    @indent = size
+    indent.length
+
   newlineToken: (offset) ->
     return 0 unless @chunk.lastIndexOf '\n' >= 0
     @token 'TERMINATOR', '\n', offset, 0 unless @tag() is 'TERMINATOR'
-    1
+    this
 
-  tag: ->
-    (last @tokens)[0]
+  outdentToken: (moveOut, noNewlines, outdentLength) ->
+    while moveOut > 0
+      len = @indents.length - 1
+      if @indents[len] is undefined
+        moveOut = 0
+      else if @indents[len] is @outdebt
+        moveOut -= @outdebt
+        @outdebt = 0
+      else if @indents[len] < @outdebt
+        @outdebt -= @indents[len]
+        moveOut  -= @indents[len]
+      else
+        dent = @indents.pop() + @outdebt
+        moveOut -= dent
+        @outdebt = 0
+        @pair 'OUTDENT'
+        @token 'OUTDENT', dent, 0, outdentLength
+    @outdebt -= moveOut if dent
+    @tokens.pop() while @value() is ';'
+
+    @token 'TERMINATOR', '\n', outdentLength, 0 unless @tag() is 'TERMINATOR' or noNewlines
+    this
+
+  suppressNewlines: ->
+    @tokens.pop() if @value() is '\\'
+    this
+
+  unfinished: ->
+    LINE_CONTINUER.test(@chunk) or
+    @tag() in ['\\', '.', '?.', '?::', 'UNARY', 'MATH', '+', '-', 'SHIFT', 'RELATION'
+               'COMPARE', 'LOGIC', 'THROW', 'EXTENDS']
+
+  pair: (tag) ->
+    unless tag is wanted = last @ends
+      @error "unmatched #{tag}" unless 'OUTDENT' is wanted
+      # Auto-close INDENT to support syntax like this:
+      #
+      #     el.click((event) ->
+      #       el.hide())
+      #
+      @indent -= size = last @indents
+      @outdentToken size, true
+      return @pair tag
+    @ends.pop()
+
+
+  tag: (index, tag) ->
+    (tok = last @tokens, index) and if tag then tok[0] = tag else tok[0]
+
+  # Peek at a value in the current token stream.
+  value: (index, val) ->
+    (tok = last @tokens, index) and if val then tok[1] = val else tok[1]
+
 
   makeToken: (tag, value, offsetInChunk = 0, length = value.length) ->
     locationData = {}
@@ -125,3 +205,7 @@ IDENTIFIER = /^(\w+):/
 VALUE = /^[a-zA-Z0-9_$]+/
 
 TRAILING_SPACES = /\s+$/
+
+MULTI_DENT = /^(?:\n[^\n\S]*)+/
+
+LINE_CONTINUER  = /// ^ \s* (?: , | \??\.(?![.\d]) | :: ) ///

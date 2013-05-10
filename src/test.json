@@ -1,2 +1,6 @@
 foo: bar
 bam: baz
+author:
+    name: gerred
+    email: hello
+website: ohmygod
