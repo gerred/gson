@@ -1,13 +1,6 @@
 {count, last} = require './helpers'
 
 exports.Lexer = class Lexer
-  constructor: ->
-    # @tokens = [
-    #   ['ID', 'foo', [0,0]]
-    #   [':', ':', [0,0]]
-    #   ['VALUE', 'bar', [0,0]]
-    #   ['EOF', '<<EOF>>', [0,0]]
-    # ]
   tokenize: (code, opts={}) ->
     @tokens = []
 
