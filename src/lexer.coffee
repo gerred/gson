@@ -7,13 +7,17 @@ exports.Lexer = class Lexer
     @outdebt  = 0              # The under-outdentation at the current level.
     @indents  = []             # The stack of all current indentation levels.
     @ends     = []             # The stack for pairing up tokens.
-    @tokens = []
+    @tokens   = []             # Stream of parsed tokens in the form `['TYPE', value, location data]`.
 
     @chunkLine =
-      opts.line or 0
-    @chunkColumn = opts.column or 0
-    code = @clean code
+      opts.line or 0           # The start line for the current @chunk.
+    @chunkColumn =
+      opts.column or 0         # The start column of the current @chunk.
+    code = @clean code         # The stripped, cleaned original source code.
 
+    # At every position, run through this list of attempted matches,
+    # short-circuiting if any of them succeed. Their order determines precedence:
+    # `@literalToken` is the fallback catch-all.
     i = 0
     while @chunk = code[i..]
       consumed = \
@@ -21,12 +25,30 @@ exports.Lexer = class Lexer
             @valueToken() or
             @whitespaceToken() or
             @lineToken()
+
+      # Update position
       [@chunkLine, @chunkColumn] = @getLineAndColumnFromChunk consumed
+
       i += consumed
+
+  # Preprocess the code to remove leading and trailing whitespace, carriage
+  # returns, etc. If we're lexing literate CoffeeScript, strip external Markdown
+  # by removing all lines that aren't indented by at least four spaces or a tab.
+  clean: (code) ->
+    code = code.slice(1) if code.charCodeAt(0) is BOM
+    code = code.replace(/\r/g, '').replace TRAILING_SPACES, ''
+    if WHITESPACE.test code
+        code = "\n#{code}"
+        @chunkLine--
+    code
 
   setInput: ->
     @pos = 0
 
+
+  # Tokenizers
+  # ----------
+  
   identifierToken: ->
     return 0 unless match = IDENTIFIER.exec @chunk
     identifier = match[0]
@@ -41,6 +63,8 @@ exports.Lexer = class Lexer
 
     value.length
 
+  # Matches and consumes non-meaningful whitespace. Tag the previous token
+  # as being "spaced", because there are some cases where it makes a difference.
   whitespaceToken: ->
     return 0 unless (match = WHITESPACE.exec @chunk) or
                     (nline = @chunk.charAt(0) is '\n')
@@ -48,6 +72,17 @@ exports.Lexer = class Lexer
     prev[if match then 'spaced' else 'newLine'] = true if prev
     if match then match[0].length else 0
 
+
+  # Matches newlines, indents, and outdents, and determines which is which.
+  # If we can detect that the current line is continued onto the the next line,
+  # then the newline is suppressed:
+  #
+  #     elements
+  #       .each( ... )
+  #       .map( ... )
+  #
+  # Keeps track of the level of indentation, because a single outdent token
+  # can close multiple indents, so we need to know how far in we happen to be.
   lineToken: ->
     return 0 unless match = MULTI_DENT.exec @chunk
     indent = match[0]
@@ -74,11 +109,14 @@ exports.Lexer = class Lexer
     @indent = size
     indent.length
 
+  # Generate a newline token. Consecutive newlines get merged together.
   newlineToken: (offset) ->
     return 0 unless @chunk.lastIndexOf '\n' >= 0
     @token 'TERMINATOR', '\n', offset, 0 unless @tag() is 'TERMINATOR'
     this
 
+  # Record an outdent token or multiple tokens, if we happen to be moving back
+  # inwards past several recorded indents.
   outdentToken: (moveOut, noNewlines, outdentLength) ->
     while moveOut > 0
       len = @indents.length - 1
@@ -102,15 +140,20 @@ exports.Lexer = class Lexer
     @token 'TERMINATOR', '\n', outdentLength, 0 unless @tag() is 'TERMINATOR' or noNewlines
     this
 
+  # Use a `\` at a line-ending to suppress the newline.
+  # The slash is removed here once its job is done.
   suppressNewlines: ->
     @tokens.pop() if @value() is '\\'
     this
 
+  # Are we in the midst of an unfinished expression?
   unfinished: ->
     LINE_CONTINUER.test(@chunk) or
     @tag() in ['\\', '.', '?.', '?::', 'UNARY', 'MATH', '+', '-', 'SHIFT', 'RELATION'
                'COMPARE', 'LOGIC', 'THROW', 'EXTENDS']
 
+  # Pairs up a closing token, ensuring that all listed pairs of tokens are
+  # correctly balanced throughout the course of the token stream.
   pair: (tag) ->
     unless tag is wanted = last @ends
       @error "unmatched #{tag}" unless 'OUTDENT' is wanted
@@ -124,7 +167,7 @@ exports.Lexer = class Lexer
       return @pair tag
     @ends.pop()
 
-
+  # Peek at a tag in the current token stream.
   tag: (index, tag) ->
     (tok = last @tokens, index) and if tag then tok[0] = tag else tok[0]
 
@@ -132,7 +175,8 @@ exports.Lexer = class Lexer
   value: (index, val) ->
     (tok = last @tokens, index) and if val then tok[1] = val else tok[1]
 
-
+  # Same as "token", exception this just returns the token without adding it
+  # to the results.
   makeToken: (tag, value, offsetInChunk = 0, length = value.length) ->
     locationData = {}
     [locationData.first_line, locationData.first_column] =
@@ -169,14 +213,9 @@ exports.Lexer = class Lexer
 
     tag
 
-  clean: (code) ->
-    code = code.slice(1) if code.charCodeAt(0) is BOM
-    code = code.replace(/\r/g, '').replace TRAILING_SPACES, ''
-    if WHITESPACE.test code
-        code = "\n#{code}"
-        @chunkLine--
-    code
-
+  # Returns the line and column number from an offset into the current chunk.
+  #
+  # `offset` is a number of characters into @chunk.
   getLineAndColumnFromChunk: (offset) ->
     if offset is 0
       return [@chunkLine, @chunkColumn]
@@ -198,6 +237,8 @@ exports.Lexer = class Lexer
     [@chunkLine + lineCount, column]
 
 WHITESPACE = /^[^\n\S]+/
+
+# The character code of the nasty Microsoft madness otherwise known as the BOM.
 BOM = 65279
 
 IDENTIFIER = /^(\w+):/
